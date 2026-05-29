@@ -1,0 +1,5 @@
+"E:\CLION\CLion 2025.3.1\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_BUILD_TYPE=Debug --preset Debug -S F:\CLION__Project\control_voltage -B F:\CLION__Project\control_voltage\build\Debug
+Build type: Debug
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: F:/CLION__Project/control_voltage/build/Debug
