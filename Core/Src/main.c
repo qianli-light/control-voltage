@@ -50,7 +50,26 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint16_t ADC_value[40];//5个通道，8个数据取平均滤波
+#define upper_limit                           800.0f
+#define lower_limit                           200.0f
+
+uint16_t ADC_value[32];//2个通道，16个数据取平均滤波
+
+const uint8_t buff_size=16;
+
+float32_t phy_setpoint=0.0f;
+float32_t phy_measurement[2];
+float32_t calc_measurement[2];
+float32_t calc_setpoint=0;
+float32_t pid_memory[3];
+float32_t debug_value=0;
+
+const float32_t voltage_gain=1.0;
+const float32_t phy_calc_conv=voltage_gain/(float32_t)buff_size;
+const float32_t Ts=5e-5f;
+
+arm_pid_instance_f32 pid;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,7 +91,13 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  calc_setpoint=phy_setpoint/phy_calc_conv;
+  pid.Kp=0;
+  pid.Ki=0;
+  pid.Kd=0;
+  pid.A0=pid.Kp+pid.Ki*Ts+pid.Kd/Ts;
+  pid.A1=-pid.Kp-2.0f*pid.Kd/Ts;
+  pid.A2=pid.Kd/Ts;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -98,8 +123,12 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+  arm_pid_init_f32(&pid,1);
+
   HAL_ADCEx_Calibration_Start(&hadc1,ADC_SINGLE_ENDED);
   HAL_ADC_Start_DMA(&hadc1,(uint32_t*)ADC_value,sizeof(ADC_value)/sizeof(uint16_t));
+
+
 
   /* USER CODE END 2 */
 
@@ -107,6 +136,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -160,10 +193,36 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+
+uint32_t PID_Compute(const float32_t error) {
+  arm_copy_f32(pid.state,pid_memory,3);
+  const float32_t output = arm_pid_f32(&pid, error);
+  debug_value=output;
+
+  if (output > upper_limit)
+  {
+    arm_copy_f32(pid_memory,pid.state,3);
+    return upper_limit;
+  }
+  if (output < lower_limit)
+  {
+    arm_copy_f32(pid_memory,pid.state,3);
+    return lower_limit;
+  }
+  return (uint32_t)output;
+}
+
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if(htim->Instance==TIM4)
   {
+    calc_measurement[0]=ADC_value[0]+ADC_value[2]+ADC_value[4]+ADC_value[6]+ADC_value[8]+ADC_value[10]+ADC_value[12]+ADC_value[14]
+                    +ADC_value[16]+ADC_value[18]+ADC_value[20]+ADC_value[22]+ADC_value[24]+ADC_value[26]+ADC_value[28]+ADC_value[30];
+    calc_measurement[1]=ADC_value[1]+ADC_value[3]+ADC_value[5]+ADC_value[7]+ADC_value[9]+ADC_value[11]+ADC_value[13]+ADC_value[15]
+                    +ADC_value[17]+ADC_value[19]+ADC_value[21]+ADC_value[23]+ADC_value[25]+ADC_value[27]+ADC_value[29]+ADC_value[31];
+
 
   }
 }
