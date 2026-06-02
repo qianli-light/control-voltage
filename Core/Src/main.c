@@ -50,8 +50,19 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#define upper_limit                           800.0f
-#define lower_limit                           200.0f
+#define upper_limit                           8399.0f
+#define lower_limit                           0.0f
+#define BUCK_limit                            3780.0f
+#define Middle_limit1                         3990.0f
+#define Middle_limit2                         4410.0f
+#define BOOST_limit                           8399.0f
+#define BUCK_fix_pulse                        3864.0f
+#define BOOST_fix_pulse                       294.0f
+#define BUCK_max_pulse                        4199.0f
+#define BOOST_min_pulse                       0.0f
+#define software_step_size                    42.0f
+#define software_start_digital_setpoint       4200.0f
+
 
 uint16_t ADC_value[32];//2个通道，16个数据取平均滤波
 
@@ -122,13 +133,16 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   MX_TIM4_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   arm_pid_init_f32(&pid,1);
 
   HAL_ADCEx_Calibration_Start(&hadc1,ADC_SINGLE_ENDED);
   HAL_ADC_Start_DMA(&hadc1,(uint32_t*)ADC_value,sizeof(ADC_value)/sizeof(uint16_t));
 
-
+  HAL_TIM_Base_Start(&htim1);
+  software_start();
+  HAL_TIM_Base_Start_IT(&htim4);
 
   /* USER CODE END 2 */
 
@@ -214,17 +228,73 @@ uint32_t PID_Compute(const float32_t error) {
 }
 
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
   if(htim->Instance==TIM4)
   {
+    static uint16_t out;
     calc_measurement[0]=ADC_value[0]+ADC_value[2]+ADC_value[4]+ADC_value[6]+ADC_value[8]+ADC_value[10]+ADC_value[12]+ADC_value[14]
                     +ADC_value[16]+ADC_value[18]+ADC_value[20]+ADC_value[22]+ADC_value[24]+ADC_value[26]+ADC_value[28]+ADC_value[30];
-    calc_measurement[1]=ADC_value[1]+ADC_value[3]+ADC_value[5]+ADC_value[7]+ADC_value[9]+ADC_value[11]+ADC_value[13]+ADC_value[15]
-                    +ADC_value[17]+ADC_value[19]+ADC_value[21]+ADC_value[23]+ADC_value[25]+ADC_value[27]+ADC_value[29]+ADC_value[31];
+    //  calc_measurement[1]=ADC_value[1]+ADC_value[3]+ADC_value[5]+ADC_value[7]+ADC_value[9]+ADC_value[11]+ADC_value[13]+ADC_value[15]
+    //     +ADC_value[17]+ADC_value[19]+ADC_value[21]+ADC_value[23]+ADC_value[25]+ADC_value[27]+ADC_value[29]+ADC_value[31];
+    out=PID_Compute(calc_setpoint-calc_measurement[0]);
+    if (out<=BUCK_limit)
+    {
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,out);
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_2,BOOST_min_pulse);
+    }
+    else if (out>BUCK_limit  &&  out<=Middle_limit1)
+    {
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,out-126);
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_2,BOOST_fix_pulse);
+    }
+    else if (out>Middle_limit1  &&  out<=Middle_limit2)
+    {
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,BUCK_fix_pulse);
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_2,out-3654);
+    }
+    else if (out>Middle_limit2  &&  out<=BOOST_limit)
+    {
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,BUCK_max_pulse);
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_2,out-4242);
+    }
 
 
   }
+}
+void software_start(void) {
+  HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_1);
+  HAL_TIMEx_PWMN_Start(&htim1,TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1,TIM_CHANNEL_2);
+  HAL_TIMEx_PWMN_Start(&htim1,TIM_CHANNEL_2);
+  for (int i=0;i<=software_start_digital_setpoint;i+=software_step_size)
+  {
+    if (i<=BUCK_limit)
+    {
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,i);
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_2,BOOST_min_pulse);
+    }
+    else if (i>BUCK_limit  &&  i<=Middle_limit1)
+    {
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,i-126);
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_2,BOOST_fix_pulse);
+    }
+    else if (i>Middle_limit1  &&  i<=Middle_limit2)
+    {
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,BUCK_fix_pulse);
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_2,i-3654);
+    }
+    else if (i>Middle_limit2  &&  i<=BOOST_limit)
+    {
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_1,BUCK_max_pulse);
+      __HAL_TIM_SET_COMPARE(&htim1,TIM_CHANNEL_2,i-4242);
+    }
+    HAL_Delay(1);
+  }
+
+
+
+
+
 }
 /* USER CODE END 4 */
 
