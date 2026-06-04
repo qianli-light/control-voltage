@@ -137,7 +137,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   arm_pid_init_f32(&pid,1);
 
-  HAL_ADCEx_Calibration_Start(&hadc1,ADC_SINGLE_ENDED);
+  HAL_ADCEx_Calibration_Start(&hadc1,ADC_DIFFERENTIAL_ENDED);
   HAL_ADC_Start_DMA(&hadc1,(uint32_t*)ADC_value,sizeof(ADC_value)/sizeof(uint16_t));
 
   HAL_TIM_Base_Start(&htim1);

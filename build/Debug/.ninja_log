@@ -58,3 +58,5 @@
 141	764	8020952127181516	CMakeFiles/control_voltage.dir/Core/Src/stm32g4xx_it.c.obj	f828e8f406f07af9
 154	765	8020952127202780	CMakeFiles/control_voltage.dir/Core/Src/stm32g4xx_hal_msp.c.obj	6b63208f41e531f9
 765	1173	8020952131224980	control_voltage.elf	ceb0f56fac5e2bf
+7	325	8022842607933144	CMakeFiles/control_voltage.dir/Core/Src/main.c.obj	8042c8a023960b67
+326	741	8022842612031310	control_voltage.elf	ceb0f56fac5e2bf
